@@ -12,7 +12,7 @@ class Processo extends Model
     protected $fillable = [
         'numero_processo', 'validade_processo', 'objeto',
         'tipo_id', 'categoria_id', 'secretaria_id', 'empresa_id', 'processo_mae_id',
-        'localizacao', 'situacao', 'dias'
+        'localizacao', 'status_id', 'dias'
     ];
     protected $casts = [
         'validade_processo' => 'date',
@@ -26,6 +26,11 @@ class Processo extends Model
     public function categoria()
     {
         return $this->belongsTo(\App\Models\Categoria::class);
+    }
+
+    public function status()
+    {
+        return $this->belongsTo(\App\Models\Status::class);
     }
 
     public function secretaria()

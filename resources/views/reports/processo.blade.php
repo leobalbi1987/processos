@@ -72,8 +72,8 @@
             <td>{{ $processo->validade_processo ? $processo->validade_processo->format('d/m/Y') : 'N/A' }}</td>
         </tr>
         <tr>
-            <th>Localização / Situação</th>
-            <td>{{ $processo->localizacao ?? 'N/A' }} / {{ $processo->situacao ?? 'N/A' }}</td>
+            <th>Localização / Status</th>
+            <td>{{ $processo->localizacao ?? 'N/A' }} / {{ $processo->status?->nome ?? 'N/A' }}</td>
         </tr>
         <tr>
             <th>Dias Decorridos</th>

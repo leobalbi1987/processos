@@ -8,6 +8,7 @@ use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Fields\Date;
 use Laravel\Nova\Fields\Textarea;
 use Laravel\Nova\Fields\BelongsTo;
+use Laravel\Nova\Fields\Select;
 use Laravel\Nova\Fields\HasMany;
 use Laravel\Nova\Fields\FormData;
 use Laravel\Nova\Http\Requests\NovaRequest;
@@ -129,9 +130,18 @@ class Processo extends Resource
                     return null;
                 }),
             BelongsTo::make('Tipo')
-                ->display('nome')->hideFromIndex(),
+                ->display('nome')->hideFromIndex()
+                ->default(1),
             BelongsTo::make('Categoria', 'categoria', \App\Nova\Categoria::class)
                 ->display('nome')->hideFromIndex(),
+            BelongsTo::make('Status', 'status', \App\Nova\Status::class)
+                ->display('nome')
+                ->sortable(),
+            BelongsTo::make('Processo Mãe', 'processoMae', \App\Nova\ProcessoMae::class)
+                ->display('numero_processo')
+                ->sortable()
+                ->nullable(),
+
             BelongsTo::make('Secretaria', 'secretaria', \App\Nova\Secretaria::class)
                 ->display('nome')
                 ->sortable()
@@ -151,10 +161,14 @@ class Processo extends Resource
                         }
                     }
                 }),
-            BelongsTo::make('Processo Mãe', 'processoMae', \App\Nova\ProcessoMae::class)
-                ->display('numero_processo')->hideFromIndex(),
-            Text::make('Localização', 'localizacao')->onlyOnForms(),
-            Text::make('Situação', 'situacao')->onlyOnForms(),
+            Select::make('Localização', 'localizacao')
+                ->options([
+                    'financas' => 'Finanças',
+                    'tecnologia' => 'Tecnologia',
+                    'fazenda' => 'Fazenda',
+                ])
+                ->rules('required')
+                ->onlyOnForms(),
             Text::make('Dias', 'dias')->onlyOnForms(),
             \Laravel\Nova\Fields\HasOne::make('Nota Fiscal', 'notaFiscal', \App\Nova\NotaFiscal::class),
             HasMany::make('Histórico de Status', 'statusHistoricos', ProcessoStatusHistorico::class),

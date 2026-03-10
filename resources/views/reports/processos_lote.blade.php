@@ -64,7 +64,7 @@
                 <th class="col-referencia">Mês de Referência</th>
                 <th class="col-valor">Valor</th>
                 <th class="col-localizacao">Localização</th>
-                <th class="col-situacao">Situação</th>
+                <th class="col-situacao">Status</th>
                 <th class="col-dias">Dias</th>
             </tr>
         </thead>
@@ -77,7 +77,7 @@
                 <td>{{ $processo->notaFiscal?->data_referencia ?? 'N/A' }}</td>
                 <td>R$ {{ number_format($processo->notaFiscal?->valor_nf ?? 0, 2, ',', '.') }}</td>
                 <td>{{ $processo->localizacao ?? 'N/A' }}</td>
-                <td>{{ $processo->situacao ?? 'N/A' }}</td>
+                <td>{{ $processo->status?->nome ?? 'N/A' }}</td>
                 <td>{{ $processo->dias ?? 'N/A' }}</td>
             </tr>
             @endforeach
