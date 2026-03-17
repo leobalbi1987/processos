@@ -16,7 +16,7 @@ class TotalEmpenhado extends Value
      */
     public function calculate(NovaRequest $request)
     {
-        return $this->count($request, Model::class);
+        return $this->sum($request, \App\Models\Empenho::class, 'valor_global');
     }
 
     /**

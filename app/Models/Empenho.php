@@ -16,6 +16,14 @@ class Empenho extends Model
                 $empenho->saldo = $empenho->valor_global;
             }
         });
+
+        static::saved(function (self $empenho) {
+            \App\Models\EmpenhoAcumulado::updateAcumulado($empenho->empresa_id);
+        });
+
+        static::deleted(function (self $empenho) {
+            \App\Models\EmpenhoAcumulado::updateAcumulado($empenho->empresa_id);
+        });
     }
 
     public function processo()
