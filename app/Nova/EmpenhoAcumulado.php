@@ -59,7 +59,7 @@ class EmpenhoAcumulado extends Resource
                 ->display('nome')
                 ->sortable(),
 
-            Currency::make('Valor Total Acumulado', 'valor_total')
+            Currency::make('Saldo Total Acumulado', 'valor_total')
                 ->currency('BRL')
                 ->sortable(),
 

@@ -25,7 +25,7 @@ class EmpenhoAcumulado extends Model
 
         if (!$empresa) return;
 
-        $total = $empresa->empenhos->sum('valor_global');
+        $total = $empresa->empenhos->sum('saldo');
         $lista = $empresa->empenhos->pluck('numero_empenho')->implode(', ');
 
         self::updateOrCreate(
