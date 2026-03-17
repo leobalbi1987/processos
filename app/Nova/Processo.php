@@ -59,6 +59,13 @@ class Processo extends Resource
     public function fields(NovaRequest $request)
     {
         return [
+            Text::make('Nº da Nota Fiscal', 'nota_fiscal_numero')
+                ->onlyOnForms()
+                ->help('Digite o número da nota fiscal para auto preencher os dados do processo')
+                ->fillUsing(function ($request, $model, $attribute, $requestAttribute) {
+                    return [];
+                }),
+
             ID::make()->sortable(),
 
             BelongsTo::make('Empresa', 'empresa', \App\Nova\Empresa::class)
@@ -72,8 +79,13 @@ class Processo extends Resource
                     }
                     return null;
                 })
-                ->dependsOn(['empenho_numero'], function (BelongsTo $field, NovaRequest $request, FormData $formData) {
-                    if ($formData->empenho_numero) {
+                ->dependsOn(['empenho_numero', 'nota_fiscal_numero'], function (BelongsTo $field, NovaRequest $request, FormData $formData) {
+                    if ($formData->nota_fiscal_numero) {
+                        $nota = \App\Models\NotaFiscal::where('numero_nf', $formData->nota_fiscal_numero)->first();
+                        if ($nota && $nota->empenho) {
+                            $field->default($nota->empenho->empresa_id);
+                        }
+                    } elseif ($formData->empenho_numero) {
                         $empenho = \App\Models\Empenho::where('numero_empenho', $formData->empenho_numero)->first();
                         if ($empenho) {
                             $field->default($empenho->empresa_id);
@@ -113,6 +125,14 @@ class Processo extends Resource
                     }
                     return null;
                 })
+                ->dependsOn(['nota_fiscal_numero'], function (Text $field, NovaRequest $request, FormData $formData) {
+                    if ($formData->nota_fiscal_numero) {
+                        $nota = \App\Models\NotaFiscal::where('numero_nf', $formData->nota_fiscal_numero)->first();
+                        if ($nota && $nota->empenho) {
+                            $field->default($nota->empenho->numero_empenho);
+                        }
+                    }
+                })
                 ->fillUsing(function ($request, $model, $attribute, $requestAttribute) {
                     return [];
                 }),
@@ -128,6 +148,15 @@ class Processo extends Resource
                         }
                     }
                     return null;
+                })
+                ->dependsOn(['nota_fiscal_numero'], function (Textarea $field, NovaRequest $request, FormData $formData) {
+                    if ($formData->nota_fiscal_numero) {
+                        $nota = \App\Models\NotaFiscal::where('numero_nf', $formData->nota_fiscal_numero)->first();
+                        if ($nota) {
+                            $mes = $nota->data_referencia ? " - Mês: {$nota->data_referencia}" : "";
+                            $field->default("Pagamento referente à Nota Fiscal nº {$nota->numero_nf}{$mes}");
+                        }
+                    }
                 }),
             BelongsTo::make('Tipo')
                 ->display('nome')->hideFromIndex()
@@ -153,8 +182,13 @@ class Processo extends Resource
                     }
                     return null;
                 })
-                ->dependsOn(['empenho_numero'], function (BelongsTo $field, NovaRequest $request, FormData $formData) {
-                    if ($formData->empenho_numero) {
+                ->dependsOn(['empenho_numero', 'nota_fiscal_numero'], function (BelongsTo $field, NovaRequest $request, FormData $formData) {
+                    if ($formData->nota_fiscal_numero) {
+                        $nota = \App\Models\NotaFiscal::where('numero_nf', $formData->nota_fiscal_numero)->first();
+                        if ($nota && $nota->empenho) {
+                            $field->default($nota->empenho->secretaria_id);
+                        }
+                    } elseif ($formData->empenho_numero) {
                         $empenho = \App\Models\Empenho::where('numero_empenho', $formData->empenho_numero)->first();
                         if ($empenho) {
                             $field->default($empenho->secretaria_id);
@@ -171,7 +205,7 @@ class Processo extends Resource
                 ->onlyOnForms(),
             Text::make('Dias', 'dias')->onlyOnForms(),
             \Laravel\Nova\Fields\HasOne::make('Nota Fiscal', 'notaFiscal', \App\Nova\NotaFiscal::class),
-            HasMany::make('Histórico de Status', 'statusHistoricos', ProcessoStatusHistorico::class),
+            HasMany::make('Processos Status Historico', 'statusHistoricos', \App\Nova\ProcessoStatusHistorico::class),
         ];
     }
 

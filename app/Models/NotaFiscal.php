@@ -10,7 +10,7 @@ class NotaFiscal extends Model
 {
     use HasFactory;
     protected $table = 'notas_fiscais';
-    protected $fillable = ['numero_nf', 'valor_nf', 'data_emissao', 'data_referencia', 'empenho_id', 'processo_id'];
+    protected $fillable = ['numero_nf', 'ordem_de_servico', 'valor_nf', 'data_emissao', 'data_referencia', 'empenho_id', 'processo_id'];
 
     protected $casts = [
         'data_emissao' => 'date',

@@ -45,6 +45,7 @@ class NotaFiscal extends Resource
             ID::make()->sortable(),
             \Laravel\Nova\Fields\Text::make('Número NF', 'numero_nf')
                 ->rules('required'),
+            \Laravel\Nova\Fields\Text::make('Ordem de Serviço', 'ordem_de_servico'),
             \Laravel\Nova\Fields\Currency::make('Valor', 'valor_nf')
                 ->currency('BRL'),
             \Laravel\Nova\Fields\Date::make('Data Emissão', 'data_emissao'),
