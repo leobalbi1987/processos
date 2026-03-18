@@ -63,7 +63,7 @@ class Processo extends Resource
                 ->onlyOnForms()
                 ->help('Digite o número da nota fiscal para auto preencher os dados do processo')
                 ->fillUsing(function ($request, $model, $attribute, $requestAttribute) {
-                    return [];
+                    // Não fazemos nada aqui, pois o valor é apenas para o frontend
                 }),
 
             ID::make()->sortable(),
@@ -105,9 +105,11 @@ class Processo extends Resource
                 }),
 
             Text::make('Nº da Nota Fiscal', 'notaFiscal.numero_nf')
+                ->sortable()
                 ->exceptOnForms(),
 
             Text::make('Mês de Referência', 'notaFiscal.data_referencia')
+                ->sortable()
                 ->exceptOnForms(),
 
             \Laravel\Nova\Fields\Currency::make('Valor', 'notaFiscal.valor_nf')
@@ -205,6 +207,12 @@ class Processo extends Resource
                 ->onlyOnForms(),
             Text::make('Dias', 'dias')->onlyOnForms(),
             \Laravel\Nova\Fields\HasOne::make('Nota Fiscal', 'notaFiscal', \App\Nova\NotaFiscal::class),
+            \Laravel\Nova\Fields\BelongsToMany::make('Empenhos Utilizados', 'empenhosPagos', \App\Nova\Empenho::class)
+                ->fields(function () {
+                    return [
+                        \Laravel\Nova\Fields\Currency::make('Valor Pago', 'valor_pago')->currency('BRL'),
+                    ];
+                }),
             HasMany::make('Processos Status Historico', 'statusHistoricos', \App\Nova\ProcessoStatusHistorico::class),
         ];
     }

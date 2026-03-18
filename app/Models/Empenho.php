@@ -39,6 +39,14 @@ class Empenho extends Model
     {
         return $this->belongsTo(\App\Models\Secretaria::class);
     }
+
+    public function processosPagos()
+    {
+        return $this->belongsToMany(Processo::class, 'processo_empenhos', 'empenho_id', 'processo_id')
+                    ->withPivot('valor_pago')
+                    ->withTimestamps();
+    }
+
     public function notasFiscais()
     {
         return $this->hasMany(\App\Models\NotaFiscal::class);
