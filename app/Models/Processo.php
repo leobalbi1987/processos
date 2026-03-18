@@ -71,6 +71,38 @@ class Processo extends Model
                 if ($nota) {
                     $nota->processo_id = $processo->id;
                     $nota->save();
+
+                    // LÓGICA DE ABATIMENTO AO GERAR PROCESSO
+                    $valorRestante = $nota->valor_nf;
+                    $empenhoPrincipal = $nota->empenho;
+
+                    if ($empenhoPrincipal) {
+                        // Primeiro abate do empenho selecionado na nota
+                        $abatimentoPrincipal = min($valorRestante, $empenhoPrincipal->saldo);
+                        $empenhoPrincipal->saldo -= $abatimentoPrincipal;
+                        $empenhoPrincipal->processo_id = $processo->id;
+                        $empenhoPrincipal->save();
+                        $valorRestante -= $abatimentoPrincipal;
+
+                        // Se ainda houver valor a abater, busca outros empenhos da mesma empresa com saldo
+                        if ($valorRestante > 0) {
+                            $outrosEmpenhos = \App\Models\Empenho::where('empresa_id', $empenhoPrincipal->empresa_id)
+                                ->where('id', '!=', $empenhoPrincipal->id)
+                                ->where('saldo', '>', 0)
+                                ->orderBy('created_at', 'asc')
+                                ->get();
+
+                            foreach ($outrosEmpenhos as $outro) {
+                                if ($valorRestante <= 0) break;
+
+                                $abatimento = min($valorRestante, $outro->saldo);
+                                $outro->saldo -= $abatimento;
+                                $outro->processo_id = $processo->id;
+                                $outro->save();
+                                $valorRestante -= $abatimento;
+                            }
+                        }
+                    }
                 }
             }
         });

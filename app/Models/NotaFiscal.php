@@ -38,19 +38,20 @@ class NotaFiscal extends Model
             if (!$empenho) {
                 throw ValidationException::withMessages(['empenho_id' => 'Empenho inválido']);
             }
-
+            
             // Busca o saldo total acumulado de todos os empenhos da mesma empresa
             $saldoTotalEmpresa = Empenho::where('empresa_id', $empenho->empresa_id)->sum('saldo');
 
             if ($nota->valor_nf > $saldoTotalEmpresa) {
                 $saldoFormatado = number_format($saldoTotalEmpresa, 2, ',', '.');
                 throw ValidationException::withMessages([
-                    'valor_nf' => "Saldo total insuficiente para esta empresa. Saldo disponível em todos os empenhos: R$ {$saldoFormatado}. Crie um novo empenho."
+                    'valor_nf' => "Saldo total insuficiente para esta empresa. O valor da nota (R$ " . number_format($nota->valor_nf, 2, ',', '.') . ") excede o saldo total acumulado de todos os empenhos (R$ {$saldoFormatado})."
                 ]);
             }
         });
+
         static::created(function (self $nota) {
-            // Update Empenho's processo_id if this NF was created with a process linked
+            // Sincroniza o processo_id se a nota já foi criada vinculada a um processo
             if ($nota->processo_id) {
                 $empenho = $nota->empenho;
                 if ($empenho) {
@@ -58,110 +59,22 @@ class NotaFiscal extends Model
                     $empenho->save();
                 }
             }
-
-            $valorRestante = $nota->valor_nf;
-            $empenhoPrincipal = Empenho::find($nota->empenho_id);
-
-            if ($empenhoPrincipal) {
-                // Primeiro abate do empenho selecionado
-                $abatimentoPrincipal = min($valorRestante, $empenhoPrincipal->saldo);
-                $empenhoPrincipal->saldo -= $abatimentoPrincipal;
-                $empenhoPrincipal->save();
-                $valorRestante -= $abatimentoPrincipal;
-
-                // Se ainda houver valor a abater, busca outros empenhos da mesma empresa com saldo
-                if ($valorRestante > 0) {
-                    $outrosEmpenhos = Empenho::where('empresa_id', $empenhoPrincipal->empresa_id)
-                        ->where('id', '!=', $empenhoPrincipal->id)
-                        ->where('saldo', '>', 0)
-                        ->orderBy('created_at', 'asc')
-                        ->get();
-
-                    foreach ($outrosEmpenhos as $outro) {
-                        if ($valorRestante <= 0) break;
-
-                        $abatimento = min($valorRestante, $outro->saldo);
-                        $outro->saldo -= $abatimento;
-
-                        // Se a nota tiver um processo, vincula os outros empenhos também
-                        if ($nota->processo_id) {
-                            $outro->processo_id = $nota->processo_id;
-                        }
-
-                        $outro->save();
-                        $valorRestante -= $abatimento;
-                    }
-                }
-            }
+            // O abatimento de saldo NÃO ocorre mais aqui.
         });
+
         static::updating(function (self $nota) {
-            if ($nota->isDirty('valor_nf')) {
-                $originalValor = $nota->getOriginal('valor_nf');
-                $novoValor = $nota->valor_nf;
-                $diff = $novoValor - $originalValor;
-
-                if ($diff > 0) {
-                    // Se o valor aumentou, verifica o saldo total da empresa
-                    $empenho = $nota->empenho;
-                    $saldoTotalEmpresa = Empenho::where('empresa_id', $empenho->empresa_id)->sum('saldo');
-
-                    if ($diff > $saldoTotalEmpresa) {
-                        $saldoFormatado = number_format($saldoTotalEmpresa, 2, ',', '.');
-                        throw ValidationException::withMessages([
-                            'valor_nf' => "Saldo total insuficiente para cobrir o aumento do valor da nota. Saldo disponível em todos os empenhos: R$ {$saldoFormatado}."
-                        ]);
-                    }
+            // Apenas validação básica de existência de empenho
+            if ($nota->isDirty('empenho_id')) {
+                $empenho = Empenho::find($nota->empenho_id);
+                if (!$empenho) {
+                    throw ValidationException::withMessages(['empenho_id' => 'Empenho inválido']);
                 }
             }
         });
+
         static::updated(function (self $nota) {
-            if ($nota->wasChanged('valor_nf')) {
-                $originalValor = $nota->getOriginal('valor_nf');
-                $novoValor = $nota->valor_nf;
-                $diff = $novoValor - $originalValor;
-
-                if ($diff > 0) {
-                    // Se aumentou, abate o saldo extra seguindo a mesma lógica do create
-                    $valorRestante = $diff;
-                    $empenhoPrincipal = $nota->empenho;
-
-                    if ($empenhoPrincipal) {
-                        $abatimentoPrincipal = min($valorRestante, $empenhoPrincipal->saldo);
-                        $empenhoPrincipal->saldo -= $abatimentoPrincipal;
-                        $empenhoPrincipal->save();
-                        $valorRestante -= $abatimentoPrincipal;
-
-                        if ($valorRestante > 0) {
-                            $outrosEmpenhos = Empenho::where('empresa_id', $empenhoPrincipal->empresa_id)
-                                ->where('id', '!=', $empenhoPrincipal->id)
-                                ->where('saldo', '>', 0)
-                                ->orderBy('created_at', 'asc')
-                                ->get();
-
-                            foreach ($outrosEmpenhos as $outro) {
-                                if ($valorRestante <= 0) break;
-                                $abatimento = min($valorRestante, $outro->saldo);
-                                $outro->saldo -= $abatimento;
-                                $outro->save();
-                                $valorRestante -= $abatimento;
-                            }
-                        }
-                    }
-                } else {
-                    // Se diminuiu, devolve o saldo (simplificado: devolve para o empenho principal)
-                    $empenhoPrincipal = $nota->empenho;
-                    if ($empenhoPrincipal) {
-                        $empenhoPrincipal->saldo += abs($diff);
-                        $empenhoPrincipal->save();
-                    }
-                }
-            }
-
-            // Update Empenho's processo_id if this NF just got a process linked
+            // Sincroniza o processo_id se houver mudança
             if ($nota->wasChanged('processo_id') && $nota->processo_id) {
-                // Atualiza todos os empenhos que têm saldo < valor_global daquela empresa e estão vinculados a essa nota?
-                // Na verdade, vamos atualizar o empenho principal e todos os outros que tiverem sido abatidos (mas não temos tabela pivot aqui para saber quais foram)
-                // Por enquanto, vamos atualizar o empenho principal conforme a lógica original
                 $empenho = $nota->empenho;
                 if ($empenho) {
                     $empenho->processo_id = $nota->processo_id;
@@ -169,14 +82,9 @@ class NotaFiscal extends Model
                 }
             }
         });
+
         static::deleted(function (self $nota) {
-            // Se a nota for deletada, devolve o valor para o empenho principal
-            // (Como não temos pivot, devolvemos tudo para o principal por simplicidade)
-            $empenho = $nota->empenho;
-            if ($empenho) {
-                $empenho->saldo += $nota->valor_nf;
-                $empenho->save();
-            }
+            // Não há mais necessidade de devolver saldo aqui, pois não foi abatido na nota
         });
     }
-}
+ }
