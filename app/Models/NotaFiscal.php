@@ -10,7 +10,7 @@ class NotaFiscal extends Model
 {
     use HasFactory;
     protected $table = 'notas_fiscais';
-    protected $fillable = ['numero_nf', 'ordem_de_servico', 'valor_nf', 'data_emissao', 'data_referencia', 'empenho_id', 'processo_id'];
+    protected $fillable = ['numero_nf', 'ordem_de_servico', 'valor_nf', 'data_emissao', 'data_referencia', 'empenho_id', 'processo_id', 'empenho_extra_1_id', 'empenho_extra_2_id'];
 
     protected $casts = [
         'data_emissao' => 'date',
@@ -26,6 +26,16 @@ class NotaFiscal extends Model
         return $this->belongsTo(Empenho::class, 'empenho_id');
     }
 
+    public function empenhoExtra1()
+    {
+        return $this->belongsTo(Empenho::class, 'empenho_extra_1_id');
+    }
+
+    public function empenhoExtra2()
+    {
+        return $this->belongsTo(Empenho::class, 'empenho_extra_2_id');
+    }
+
     public function processosPagamento()
     {
         return $this->hasMany(\App\Models\Processo::class, 'id', 'processo_id');
@@ -34,18 +44,27 @@ class NotaFiscal extends Model
     protected static function booted(): void
     {
         static::creating(function (self $nota) {
-            $empenho = Empenho::find($nota->empenho_id);
-            if (!$empenho) {
-                throw ValidationException::withMessages(['empenho_id' => 'Empenho inválido']);
-            }
-            
-            // Busca o saldo total acumulado de todos os empenhos da mesma empresa
-            $saldoTotalEmpresa = Empenho::where('empresa_id', $empenho->empresa_id)->sum('saldo');
+            $empenhosIds = array_filter([$nota->empenho_id, $nota->empenho_extra_1_id, $nota->empenho_extra_2_id]);
 
-            if ($nota->valor_nf > $saldoTotalEmpresa) {
-                $saldoFormatado = number_format($saldoTotalEmpresa, 2, ',', '.');
+            if (empty($empenhosIds)) {
+                throw ValidationException::withMessages(['empenho_id' => 'Selecione pelo menos um empenho']);
+            }
+
+            $empenhoPrincipal = Empenho::find($nota->empenho_id);
+            if (!$empenhoPrincipal) {
+                throw ValidationException::withMessages(['empenho_id' => 'Empenho principal inválido']);
+            }
+
+            $somaSaldosSelecionados = Empenho::whereIn('id', $empenhosIds)->sum('saldo');
+            $saldoTotalEmpresa = Empenho::where('empresa_id', $empenhoPrincipal->empresa_id)->sum('saldo');
+
+            if ($nota->valor_nf > $somaSaldosSelecionados) {
+                $somaFormatada = number_format($somaSaldosSelecionados, 2, ',', '.');
+                $totalFormatado = number_format($saldoTotalEmpresa, 2, ',', '.');
+                $faltaFormatado = number_format($nota->valor_nf - $somaSaldosSelecionados, 2, ',', '.');
+
                 throw ValidationException::withMessages([
-                    'valor_nf' => "Saldo total insuficiente para esta empresa. O valor da nota (R$ " . number_format($nota->valor_nf, 2, ',', '.') . ") excede o saldo total acumulado de todos os empenhos (R$ {$saldoFormatado})."
+                    'valor_nf' => "A soma dos empenhos selecionados (R$ {$somaFormatada}) é insuficiente para cobrir o valor da nota (R$ " . number_format($nota->valor_nf, 2, ',', '.') . "). Faltam R$ {$faltaFormatado}. Selecione empenhos extras para completar o valor. Saldo total acumulado da empresa: R$ {$totalFormatado}."
                 ]);
             }
         });
@@ -63,12 +82,28 @@ class NotaFiscal extends Model
         });
 
         static::updating(function (self $nota) {
-            // Apenas validação básica de existência de empenho
-            if ($nota->isDirty('empenho_id')) {
-                $empenho = Empenho::find($nota->empenho_id);
-                if (!$empenho) {
-                    throw ValidationException::withMessages(['empenho_id' => 'Empenho inválido']);
-                }
+            $empenhosIds = array_filter([$nota->empenho_id, $nota->empenho_extra_1_id, $nota->empenho_extra_2_id]);
+
+            if (empty($empenhosIds)) {
+                throw ValidationException::withMessages(['empenho_id' => 'Selecione pelo menos um empenho']);
+            }
+
+            $empenhoPrincipal = Empenho::find($nota->empenho_id);
+            if (!$empenhoPrincipal) {
+                throw ValidationException::withMessages(['empenho_id' => 'Empenho principal inválido']);
+            }
+
+            $somaSaldosSelecionados = Empenho::whereIn('id', $empenhosIds)->sum('saldo');
+            $saldoTotalEmpresa = Empenho::where('empresa_id', $empenhoPrincipal->empresa_id)->sum('saldo');
+
+            if ($nota->valor_nf > $somaSaldosSelecionados) {
+                $somaFormatada = number_format($somaSaldosSelecionados, 2, ',', '.');
+                $totalFormatado = number_format($saldoTotalEmpresa, 2, ',', '.');
+                $faltaFormatado = number_format($nota->valor_nf - $somaSaldosSelecionados, 2, ',', '.');
+
+                throw ValidationException::withMessages([
+                    'valor_nf' => "A soma dos empenhos selecionados (R$ {$somaFormatada}) é insuficiente para cobrir o valor da nota (R$ " . number_format($nota->valor_nf, 2, ',', '.') . "). Faltam R$ {$faltaFormatado}. Selecione empenhos extras para completar o valor. Saldo total acumulado da empresa: R$ {$totalFormatado}."
+                ]);
             }
         });
 

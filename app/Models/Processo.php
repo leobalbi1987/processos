@@ -141,77 +141,77 @@ class Processo extends Model
 
         $valorRestante = $nota->valor_nf;
 
-        // 1. Verifica se o usuário indicou empenhos específicos no processo
-        $empenhosIndicados = $this->empenhosPagos()->get();
+        // 1. Verifica se o usuário indicou empenhos específicos no processo (prioridade máxima)
+        $empenhosIndicadosNoProcesso = $this->empenhosPagos()->get();
 
-        if ($empenhosIndicados->isNotEmpty()) {
-            Log::info('Empenhos indicados encontrados: ' . $empenhosIndicados->pluck('id')->implode(', '));
-            foreach ($empenhosIndicados as $empenho) {
+        if ($empenhosIndicadosNoProcesso->isNotEmpty()) {
+            Log::info('Empenhos indicados no processo encontrados: ' . $empenhosIndicadosNoProcesso->pluck('id')->implode(', '));
+            foreach ($empenhosIndicadosNoProcesso as $empenho) {
                 if ($valorRestante <= 0) break;
 
                 $abatimento = min($valorRestante, $empenho->saldo);
-                Log::info("Abatendo R$ {$abatimento} do empenho {$empenho->id} (indicado). Saldo anterior: {$empenho->saldo}");
+                Log::info("Abatendo R$ {$abatimento} do empenho {$empenho->id} (indicado no processo). Saldo anterior: {$empenho->saldo}");
 
                 $empenho->saldo -= $abatimento;
                 $empenho->processo_id = $this->id;
                 $empenho->save();
 
-                // Atualiza o valor pago no pivot
                 $this->empenhosPagos()->updateExistingPivot($empenho->id, ['valor_pago' => $abatimento]);
-
                 $valorRestante -= $abatimento;
             }
         }
 
-        // 2. Se ainda houver valor restante, usa a lógica inteligente (empenhos da mesma empresa)
+        // 2. Verifica os empenhos indicados na Nota Fiscal (Principal + Extras)
         if ($valorRestante > 0) {
-            Log::info("Valor restante para abater: R$ {$valorRestante}. Usando lógica inteligente.");
+            $empenhosDaNota = array_filter([$nota->empenho_id, $nota->empenho_extra_1_id, $nota->empenho_extra_2_id]);
+            Log::info('Empenhos indicados na Nota Fiscal: ' . implode(', ', $empenhosDaNota));
+
+            foreach ($empenhosDaNota as $empenhoId) {
+                if ($valorRestante <= 0) break;
+
+                $empenho = \App\Models\Empenho::find($empenhoId);
+                // Abate se tiver saldo e ainda não tiver sido processado como "indicado no processo"
+                if ($empenho && $empenho->saldo > 0 && !$empenhosIndicadosNoProcesso->contains('id', $empenho->id)) {
+                    $abatimento = min($valorRestante, $empenho->saldo);
+                    Log::info("Abatendo R$ {$abatimento} do empenho {$empenho->id} (indicado na nota). Saldo anterior: {$empenho->saldo}");
+
+                    $empenho->saldo -= $abatimento;
+                    $empenho->processo_id = $this->id;
+                    $empenho->save();
+
+                    $this->empenhosPagos()->syncWithoutDetaching([$empenho->id => ['valor_pago' => $abatimento]]);
+                    $valorRestante -= $abatimento;
+                }
+            }
+        }
+
+        // 3. Lógica inteligente: busca outros empenhos da mesma empresa se ainda houver valor restante
+        if ($valorRestante > 0) {
+            Log::info("Valor restante para abater: R$ {$valorRestante}. Usando lógica inteligente em cascata.");
             $empenhoPrincipal = $nota->empenho;
 
             if ($empenhoPrincipal) {
-                Log::info('Empenho principal da nota: ' . $empenhoPrincipal->id);
-                // Tenta abater do principal primeiro (se não estiver nos indicados ou se ainda tiver saldo)
-                if ($empenhoPrincipal->saldo > 0 && !$empenhosIndicados->contains('id', $empenhoPrincipal->id)) {
-                    $abatimento = min($valorRestante, $empenhoPrincipal->saldo);
-                    Log::info("Abatendo R$ {$abatimento} do empenho {$empenhoPrincipal->id} (principal). Saldo anterior: {$empenhoPrincipal->saldo}");
+                $outrosEmpenhos = \App\Models\Empenho::where('empresa_id', $empenhoPrincipal->empresa_id)
+                    ->whereNotIn('id', array_filter([$nota->empenho_id, $nota->empenho_extra_1_id, $nota->empenho_extra_2_id]))
+                    ->whereNotIn('id', $empenhosIndicadosNoProcesso->pluck('id'))
+                    ->where('saldo', '>', 0)
+                    ->orderBy('created_at', 'asc')
+                    ->get();
 
-                    $empenhoPrincipal->saldo -= $abatimento;
-                    $empenhoPrincipal->processo_id = $this->id;
-                    $empenhoPrincipal->save();
+                Log::info('Outros empenhos encontrados em cascata: ' . $outrosEmpenhos->pluck('id')->implode(', '));
 
-                    // Registra no pivot
-                    $this->empenhosPagos()->syncWithoutDetaching([$empenhoPrincipal->id => ['valor_pago' => $abatimento]]);
+                foreach ($outrosEmpenhos as $outro) {
+                    if ($valorRestante <= 0) break;
 
+                    $abatimento = min($valorRestante, $outro->saldo);
+                    Log::info("Abatendo R$ {$abatimento} do empenho {$outro->id} (cascata automática). Saldo anterior: {$outro->saldo}");
+
+                    $outro->saldo -= $abatimento;
+                    $outro->processo_id = $this->id;
+                    $outro->save();
+
+                    $this->empenhosPagos()->syncWithoutDetaching([$outro->id => ['valor_pago' => $abatimento]]);
                     $valorRestante -= $abatimento;
-                }
-
-                // Se ainda sobrar, busca outros da mesma empresa
-                if ($valorRestante > 0) {
-                    Log::info("Ainda resta R$ {$valorRestante}. Buscando outros empenhos da empresa: " . $empenhoPrincipal->empresa_id);
-                    $outrosEmpenhos = \App\Models\Empenho::where('empresa_id', $empenhoPrincipal->empresa_id)
-                        ->where('id', '!=', $empenhoPrincipal->id)
-                        ->whereNotIn('id', $empenhosIndicados->pluck('id'))
-                        ->where('saldo', '>', 0)
-                        ->orderBy('created_at', 'asc')
-                        ->get();
-
-                    Log::info('Outros empenhos encontrados: ' . $outrosEmpenhos->pluck('id')->implode(', '));
-
-                    foreach ($outrosEmpenhos as $outro) {
-                        if ($valorRestante <= 0) break;
-
-                        $abatimento = min($valorRestante, $outro->saldo);
-                        Log::info("Abatendo R$ {$abatimento} do empenho {$outro->id} (cascata). Saldo anterior: {$outro->saldo}");
-
-                        $outro->saldo -= $abatimento;
-                        $outro->processo_id = $this->id;
-                        $outro->save();
-
-                        // Registra no pivot
-                        $this->empenhosPagos()->syncWithoutDetaching([$outro->id => ['valor_pago' => $abatimento]]);
-
-                        $valorRestante -= $abatimento;
-                    }
                 }
             }
         }

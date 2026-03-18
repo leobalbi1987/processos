@@ -6,6 +6,10 @@ use Illuminate\Http\Request;
 use Laravel\Nova\Fields\ID;
 use Laravel\Nova\Fields\Select;
 use Laravel\Nova\Fields\HasMany;
+use Laravel\Nova\Fields\Text;
+use Laravel\Nova\Fields\Currency;
+use Laravel\Nova\Fields\Date;
+use Laravel\Nova\Fields\BelongsTo;
 use Laravel\Nova\Http\Requests\NovaRequest;
 
 class NotaFiscal extends Resource
@@ -63,9 +67,21 @@ class NotaFiscal extends Resource
                 'Novembro' => 'Novembro',
                 'Dezembro' => 'Dezembro',
             ])->displayUsingLabels(),
-            \Laravel\Nova\Fields\BelongsTo::make('Empenho', 'empenho', Empenho::class)
+            BelongsTo::make('Empenho Principal', 'empenho', Empenho::class)
                 ->display('numero_empenho')
                 ->rules('required'),
+
+            BelongsTo::make('Empenho Extra 1', 'empenhoExtra1', Empenho::class)
+                ->display('numero_empenho')
+                ->onlyOnForms()
+                ->nullable()
+                ->help('Adicione se o saldo do empenho principal for insuficiente para cobrir o valor total.'),
+
+            BelongsTo::make('Empenho Extra 2', 'empenhoExtra2', Empenho::class)
+                ->display('numero_empenho')
+                ->onlyOnForms()
+                ->nullable()
+                ->help('Adicione se os empenhos anteriores forem insuficientes.'),
 
             \Laravel\Nova\Fields\BelongsTo::make('Processo de Pagamento', 'processo', \App\Nova\Processo::class)
                 ->display('numero_processo')
