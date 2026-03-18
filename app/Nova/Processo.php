@@ -165,6 +165,19 @@ class Processo extends Resource
                 ->default(1),
             BelongsTo::make('Categoria', 'categoria', \App\Nova\Categoria::class)
                 ->display('nome')->hideFromIndex(),
+            Text::make('Empenhos Utilizados', function () {
+                // Carrega os empenhos que tiveram saldo abatido para este processo
+                $empenhosPagos = $this->empenhosPagos()->get();
+                if ($empenhosPagos->isEmpty()) {
+                    return '—';
+                }
+                return $empenhosPagos->map(function ($empenho) {
+                    return $empenho->numero_empenho;
+                })->implode(', ');
+            })
+            ->onlyOnIndex()
+            ->asHtml(),
+
             BelongsTo::make('Status', 'status', \App\Nova\Status::class)
                 ->display('nome')
                 ->sortable(),
