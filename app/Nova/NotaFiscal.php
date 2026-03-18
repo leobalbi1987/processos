@@ -77,15 +77,15 @@ class NotaFiscal extends Resource
                 ->nullable()
                 ->help('Adicione se o saldo do empenho principal for insuficiente para cobrir o valor total.'),
 
-            BelongsTo::make('Empenho Extra 2', 'empenhoExtra2', Empenho::class)
-                ->display('numero_empenho')
-                ->onlyOnForms()
-                ->nullable()
-                ->help('Adicione se os empenhos anteriores forem insuficientes.'),
+            // BelongsTo::make('Empenho Extra 2', 'empenhoExtra2', Empenho::class)
+            //     ->display('numero_empenho')
+            //     ->onlyOnForms()
+            //     ->nullable()
+            //     ->help('Adicione se os empenhos anteriores forem insuficientes.'),
 
-            \Laravel\Nova\Fields\BelongsTo::make('Processo de Pagamento', 'processo', \App\Nova\Processo::class)
-                ->display('numero_processo')
-                ->nullable(),
+            // \Laravel\Nova\Fields\BelongsTo::make('Processo de Pagamento', 'processo', \App\Nova\Processo::class)
+            //     ->display('numero_processo')
+            //     ->nullable(),
 
             HasMany::make('Processos de Pagamento', 'processosPagamento', \App\Nova\Processo::class),
         ];
