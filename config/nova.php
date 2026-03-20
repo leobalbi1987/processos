@@ -168,9 +168,9 @@ return [
         'logo_href' => 'https://fazenda.mangaratiba.rj.gov.br',
         'logo_class' => 'h-10',
         'colors' => [
-            "400" => "255, 193, 7, 0.5",  // Amarelo com 50% de opacidade
-            "500" => "255, 193, 7",      // Amarelo sólido
-            "600" => "255, 193, 7, 0.75", // Amarelo com 75% de opacidade
+            "400" => "0, 86, 179, 0.5",  // Azul com 50% de opacidade
+            "500" => "0, 86, 179",      // Azul sólido
+            "600" => "0, 86, 179, 0.75", // Azul com 75% de opacidade
         ]
     ],
 
