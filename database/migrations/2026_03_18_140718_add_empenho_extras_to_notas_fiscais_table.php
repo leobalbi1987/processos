@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('notas_fiscais', function (Blueprint $table) {
-            $table->foreignId('empenho_extra_1_id')->nullable()->constrained('empenhos')->onDelete('set null');
-            $table->foreignId('empenho_extra_2_id')->nullable()->constrained('empenhos')->onDelete('set null');
+            if (!Schema::hasColumn('notas_fiscais', 'empenho_extra_1_id')) {
+                $table->foreignId('empenho_extra_1_id')->nullable()->constrained('empenhos')->onDelete('set null');
+            }
+            if (!Schema::hasColumn('notas_fiscais', 'empenho_extra_2_id')) {
+                $table->foreignId('empenho_extra_2_id')->nullable()->constrained('empenhos')->onDelete('set null');
+            }
         });
     }
 

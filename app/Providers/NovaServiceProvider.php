@@ -20,6 +20,15 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
     {
         parent::boot();
 
+        Nova::serving(function () {
+            Nova::userMenu(function (Request $request, $menu) {
+                // Adiciona o nosso botão de Sair ao menu do Nova
+                return $menu->prepend(
+                    \Laravel\Nova\Menu\MenuItem::make('Sair', '/logout')
+                );
+            });
+        });
+
         Nova::footer(function ($request) {
             return Blade::render('
                     Desenvolvido Pela Sec. de Ciência, Tecnologia e Inovação.

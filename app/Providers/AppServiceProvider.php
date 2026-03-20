@@ -27,7 +27,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-       
-
+        if (config('app.env') === 'local') {
+            // Tenta forçar a desativação da verificação SSL globalmente para o Guzzle
+            $proxy = \Illuminate\Support\Facades\Http::getFacadeRoot();
+            if (method_exists($proxy, 'withoutVerifying')) {
+                \Illuminate\Support\Facades\Http::withoutVerifying();
+            }
+        }
     }
 }

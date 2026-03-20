@@ -13,7 +13,7 @@ class RelatorioController extends Controller
         // Carrega relacionamentos necessários
         $processo->load(['empresa', 'secretaria', 'tipo', 'categoria', 'notaFiscal', 'statusHistoricos.status']);
 
-        $logoPath = public_path('img/1200px-Brasão_mangaratiba.jpg');
+        $logoPath = public_path('img/1200px-Brasao_mangaratiba.jpg');
         $logoData = base64_encode(file_get_contents($logoPath));
         $logoBase64 = 'data:image/jpeg;base64,' . $logoData;
 

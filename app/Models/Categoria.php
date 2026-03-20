@@ -8,5 +8,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Categoria extends Model
 {
     use HasFactory;
-    protected $fillable = ['nome'];
+    protected $fillable = ['nome', 'empres-id'];
+
+    public function empresa()
+    {
+        return $this->belongsTo(Empresa::class, 'empres-id');
+    }
 }

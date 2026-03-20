@@ -116,29 +116,29 @@ class Processo extends Resource
                 ->currency('BRL')
                 ->exceptOnForms(),
 
-            Text::make('Empenho (Número)', 'empenho_numero')
-                ->onlyOnForms()
-                ->help('Digite o número do empenho para auto preencher Empresa e Secretaria')
-                ->default(function ($request) {
-                    $notaFiscalId = $request->nota_fiscal_id ?? request('nota_fiscal_id');
-                    if ($notaFiscalId) {
-                        $nota = \App\Models\NotaFiscal::find($notaFiscalId);
-                        return $nota?->empenho?->numero_empenho;
-                    }
-                    return null;
-                })
-                ->dependsOn(['nota_fiscal_numero'], function (Text $field, NovaRequest $request, FormData $formData) {
-                    if ($formData->nota_fiscal_numero) {
-                        $nota = \App\Models\NotaFiscal::where('numero_nf', $formData->nota_fiscal_numero)->first();
-                        if ($nota && $nota->empenho) {
-                            $field->default($nota->empenho->numero_empenho);
-                        }
-                    }
-                })
-                ->fillUsing(function ($request, $model, $attribute, $requestAttribute) {
-                    return [];
-                }),
-            Date::make('Validade', 'validade_processo')->hideFromIndex(),
+            // Text::make('Empenho (Número)', 'empenho_numero')
+            //     ->onlyOnForms()
+            //     ->help('Digite o número do empenho para auto preencher Empresa e Secretaria')
+            //     ->default(function ($request) {
+            //         $notaFiscalId = $request->nota_fiscal_id ?? request('nota_fiscal_id');
+            //         if ($notaFiscalId) {
+            //             $nota = \App\Models\NotaFiscal::find($notaFiscalId);
+            //             return $nota?->empenho?->numero_empenho;
+            //         }
+            //         return null;
+            //     })
+            //     ->dependsOn(['nota_fiscal_numero'], function (Text $field, NovaRequest $request, FormData $formData) {
+            //         if ($formData->nota_fiscal_numero) {
+            //             $nota = \App\Models\NotaFiscal::where('numero_nf', $formData->nota_fiscal_numero)->first();
+            //             if ($nota && $nota->empenho) {
+            //                 $field->default($nota->empenho->numero_empenho);
+            //             }
+            //         }
+            //     })
+            //     ->fillUsing(function ($request, $model, $attribute, $requestAttribute) {
+            //         return [];
+            //     }),
+            // Date::make('Validade', 'validade_processo')->hideFromIndex(),
             Textarea::make('Objeto')
                 ->default(function ($request) {
                     $notaFiscalId = $request->nota_fiscal_id ?? request('nota_fiscal_id');
@@ -162,9 +162,33 @@ class Processo extends Resource
                 }),
             BelongsTo::make('Tipo')
                 ->display('nome')->hideFromIndex()
-                ->default(1),
+                ->default(2),
+
+            BelongsTo::make('Processo Mãe', 'processoMae', \App\Nova\ProcessoMae::class)
+                ->display('numero_processo')
+                ->sortable()
+                ->nullable()
+                ->dependsOn(['empresa'], function (BelongsTo $field, NovaRequest $request, FormData $formData) {
+                    if ($formData->empresa) {
+                        $field->relatableQueryUsing(function (NovaRequest $request, $query) use ($formData) {
+                            return $query->where('empresa_id', $formData->empresa);
+                        });
+                    }
+                }),
+
             BelongsTo::make('Categoria', 'categoria', \App\Nova\Categoria::class)
-                ->display('nome')->hideFromIndex(),
+                ->display('nome')->hideFromIndex()
+                ->dependsOn(['processoMae'], function (BelongsTo $field, NovaRequest $request, FormData $formData) {
+                    if ($formData->processoMae) {
+                        $mae = \App\Models\ProcessoMae::find($formData->processoMae);
+                        if ($mae) {
+                            $field->default($mae->categoria_id);
+                            $field->relatableQueryUsing(function (NovaRequest $request, $query) use ($mae) {
+                                return $query->where('id', $mae->categoria_id);
+                            });
+                        }
+                    }
+                }),
             Text::make('Empenhos Utilizados', function () {
                 // Carrega os empenhos que tiveram saldo abatido para este processo
                 $empenhosPagos = $this->empenhosPagos()->get();
@@ -181,10 +205,6 @@ class Processo extends Resource
             BelongsTo::make('Status', 'status', \App\Nova\Status::class)
                 ->display('nome')
                 ->sortable(),
-            BelongsTo::make('Processo Mãe', 'processoMae', \App\Nova\ProcessoMae::class)
-                ->display('numero_processo')
-                ->sortable()
-                ->nullable(),
 
             BelongsTo::make('Secretaria', 'secretaria', \App\Nova\Secretaria::class)
                 ->display('nome')
